@@ -18,7 +18,7 @@ var paramarr = paramstr.split("=");
 var params = {};
 params[paramarr[0]] = paramarr[1];
 const id_agenda = params['id'];
-const meta = false;
+let meta_registrada = false;
 $(document).ready(function () {
 
     $('#proximaVisita').on('shown.bs.modal', function () {
@@ -151,22 +151,28 @@ $(document).ready(function () {
                 $('#servicio-avance-barra').css('width', calcularAvance(realizadas, servicio.numero_visitas));
                 $('#servicio-avance-texto').text(realizadas + ' de ' + servicio.numero_visitas + " visitas");
 
-                if (realizadas == servicio.numero_visitas) {
+                if (realizadas >= servicio.numero_visitas) {
                     $('#btnAbrirProximaVisita').hide()
                     ultima = true;
                 }
                 $('#servicio-plan-dieta').text(plan_dieta.nombre)
-                $('#servicio-plan-ejercicio').text(plan_ejercicio.nombre == null ? 'No incluye' : plan_ejercicio.nombre)
-                $('#servicio-plan-suplemento').text(plan_suplemento.nombre == null ? 'No incluye' : plan_suplemento.nombre)
+                $('#servicio-plan-ejercicio').text(plan_ejercicio == null ? 'No incluye' : plan_ejercicio.nombre)
+                $('#servicio-plan-suplemento').text(plan_suplemento == null ? 'No incluye' : plan_suplemento.nombre)
 
                 $('#plan-dieta-nombre').text(plan_dieta.nombre)
-                $('#plan-ejercicio-nombre').text(plan_ejercicio.nombre == null ? 'No incluye' : plan_ejercicio.nombre)
-                $('#plan-suplemento-nombre').text(plan_suplemento.nombre == null ? 'No incluye' : plan_suplemento.nombre)
+                $('#plan-ejercicio-nombre').text(plan_ejercicio == null ? 'No incluye' : plan_ejercicio.nombre)
+                $('#plan-suplemento-nombre').text(plan_suplemento == null ? 'No incluye' : plan_suplemento.nombre)
 
+                if(plan_ejercicio == null){
+                    $("#panel-ejercicios").hide()
+                }
+                if(plan_suplemento == null){
+                    $("#panel-suplementos").hide()
+                }
                 //Metas
                 if (metas.length > 0) {
                     metas.map(function (meta) {
-                        addRowMeta(meta.id_parametro_meta, meta.tipo_parametro, meta.parametro, meta.valor_minimo)
+                        addRowMeta(meta.id_parametro_meta, meta.tipo_parametro, meta.parametro, meta.valor_minimo, meta.signo == 0? 'fa-minus':'fa-plus')
                     })
                 }
 
@@ -375,7 +381,7 @@ $(document).ready(function () {
 
     //Registrar Visita
     $('#btnRegistrar').on('click', function () {
-        if (id_tipo_cita == 2) {
+        if (id_tipo_cita == 2 && !ultima) {
             if (!proxima) {
                 mensaje('#msjAlerta', '', 5)
                 return
@@ -386,7 +392,7 @@ $(document).ready(function () {
             window.location = 'visitas.html'
             return
         }
-        if(!meta){
+        if(!meta_registrada){
             mensaje("#msjAlerta", 'de la Meta', 5)
             return
         }
@@ -491,7 +497,7 @@ $(document).ready(function () {
             data: JSON.stringify(visita),
 
             success: function (res, status, xhr) {
-                window.location = 'visitas.html'
+               window.location = 'visitas.html'
 
                 console.log(res.data.mensaje)
             },
@@ -627,9 +633,10 @@ $(document).ready(function () {
         let tp = $('#selTipoParametroMeta').val()
         let p = $('#selParametroMeta').val()
         let v = $('#txtValorMeta').val()
+        let s = $('#selSignoMeta').val()
         let p_nombre = $('select[name="parametro_meta"] option:selected').text()
 
-        if (tp == 0 || p == 0 || v == '') {
+        if (tp == 0 || p == 0 || v == '' || s == null) {
             mensaje('#msjMeta', '', 5)
             return
         }
@@ -637,7 +644,8 @@ $(document).ready(function () {
         let meta = {
             id_orden_servicio: id_orden_servicio,
             id_parametro: p,
-            valor_minimo: v
+            valor_minimo: v,
+            signo:s
         }
         $.ajax({
             url: `https://api-sascha.herokuapp.com/parametrometas`,
@@ -647,8 +655,7 @@ $(document).ready(function () {
 
             success: function (res, status, xhr) {
                 mensaje('#msjAlerta', 'Meta', 1)
-                addRowMeta(res.data.id_parametro_meta, tp, p_nombre, v)
-                meta =true;
+                addRowMeta(res.data.id_parametro_meta, tp, p_nombre, v, s == 0? 'fa-minus':'fa-plus')
                 console.log(res.data.mensaje)
             },
             error: function (res, status, xhr) {
@@ -667,9 +674,10 @@ $(document).ready(function () {
         let tp = $('#selTipoParametroMeta').val()
         let p = $('#selParametroMeta').val()
         let v = $('#txtValorMeta').val()
+        let s = $('#selSignoMeta').val()
         let p_nombre = $('select[name="parametro_meta"] option:selected').text()
         let tp_nombre = $('select[name="tipo_parametro_meta"] option:selected').text()
-        if (tp == 0 || p == 0 || v == '') {
+        if (tp == 0 || p == 0 || v == '' || s == null) {
             mensaje('#msjMeta', '', 5)
             return
         }
@@ -677,7 +685,8 @@ $(document).ready(function () {
         let meta = {
             id_orden_servicio: id_orden_servicio,
             id_parametro: p,
-            valor_minimo: v
+            valor_minimo: v,
+            signo: s
         }
         $.ajax({
             url: `https://api-sascha.herokuapp.com/parametrometa/${id}`,
@@ -843,7 +852,7 @@ function crearTabla(id, grupos, body) {
         + "<th width='25%'>Grupo Alimenticio</th>"
         + "<th width='25%'>Cantidad</th>"
         + "<th width='10%'>Unidad</th>"
-        + "<th width='30%'>Alimentos</th>"
+        + "<th width='30%' style= 'max-width = 30px !important'>Alimentos</th>"
         + "<th width='10%'>Editar</th>"
         + "<th hidden></th>"
         + "</tr>"
@@ -858,6 +867,7 @@ function crearTabla(id, grupos, body) {
         let cant = row.insertCell(1);
         let unidad = row.insertCell(2);
         let alimentos = row.insertCell(3);
+        alimentos.style ="word-break: break-all"
         let editar = row.insertCell(4);
         let id_alimentos = row.insertCell(5);
         let arreglo_alimentos_id = []
@@ -980,7 +990,7 @@ function addRowEjercicios(id, ejercicio, cantidad, frecuencia, id_regimen) {
     let row = $(`<tr>
     <td id="ejercicio-${id}">${ejercicio}</td>
     <td class='text-center'>
-    <input class='form-control input-ejercicio' id='cantidadE-${id}' type="number" value='${cantidad}'>
+    <input class='form-control input-ejercicio' id='cantidadE-${id}' type="number" min="0" value='${cantidad}'>
     </td>
     <td id='colE-${id}'>  
     </td>
@@ -1081,7 +1091,7 @@ function addRowSuplemento(id, suplemento, cantidad, unidad, frecuencia, id_regim
     let row = $(`<tr>
         <td id="suplemento-${id}">${suplemento}</td>
         <td class='text-center'>
-        <input class='form-control input-suplemento' id='cantidad-${id}' type="number" value='${cantidad}'> ${unidad}
+        <input class='form-control input-suplemento' id='cantidad-${id}' type="number" min="0" value='${cantidad}'> ${unidad}
         </td>
         <td id='colS-${id}'>
         </td>
@@ -1206,7 +1216,7 @@ function createSelFrecuencia(id, clases, selected, element) {
 function addRowParametro(id, nombre, tipo_parametro, tipo_valor, unidad, valorP, tipo_cita, id_parametro) {
     let valor = '';
     if (tipo_valor === 2) {
-        valor = `<input id='real-${id}' type="number" class='form-control txtValor' style='width: 70%' value='${valorP == null ? '' : valorP}' ><span> ${unidad}</span>`
+        valor = `<input id='real-${id}' type="number" min="0" class='form-control txtValor' style='width: 70%' value='${valorP == null ? '' : valorP}' ><span> ${unidad}</span>`
     }
     let row = $(`<tr>
         <td id="tipo_parametro-${id}">${tipo_parametro}</td>
@@ -1218,7 +1228,6 @@ function addRowParametro(id, nombre, tipo_parametro, tipo_valor, unidad, valorP,
         <td ${tipo_cita == 2 ? '' : 'hidden'}>
         <a style='display: ${tipo_valor == 1 ? 'none' : 'inline'}' id='editarParametro-${id}' class='btn btn-white' onclick='editarParametro(${id})'><i class='fa fa-pencil' /> </a>
         <a id='eliminarParametro-${id}' class='btn btn-white' onclick='eliminarParametro(${id})'><i class='fa fa-trash' /> </a>
-        
         <a style='display:none' id='confirmarParametro-${id}' class='btn btn-white' onclick='confirmarParametro(${id})'><i class='fa fa-save' /> </a>
         <a style='display:none' id='cancelarParametro-${id}' class='btn btn-white' onclick='cancelarParametro(${id})'><i class='fa fa-times' /> </a>
         </td>
@@ -1423,9 +1432,12 @@ function resetMultiSelect() {
 
 }
 
-function addRowMeta(id, tipo_parametro, parametro, valor) {
+function addRowMeta(id, tipo_parametro, parametro, valor, signo) {
+    meta_registrada =true;
+    
     let row = $(`<tr>
-        <td hidden id="metaTP-${id}">${tipo_parametro}</td>    
+        <td hidden id="metaTP-${id}">${tipo_parametro}</td> 
+        <td id="metaS-"${id} ><i class="fa ${signo}"></i> </td>   
         <td id="metaP-${id}">${parametro}</td>
         <td id="metaV-${id}">${valor}</td>
         <td style='display: ${id_tipo_cita == 1 ? 'block' : 'none'}'>
