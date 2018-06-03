@@ -4,6 +4,7 @@ if(!localStorage.sesion) {
 $(document).ready(function (event) {
     
     let empleado = JSON.parse(localStorage.getItem('empleado'));
+    console.log(empleado)
     let cantidadNotificaciones = 0;
     let getNotificaciones = setInterval(function(){
         $.ajax({
@@ -40,7 +41,8 @@ $(document).ready(function (event) {
                 }    
             },
             error: function(res, status, xhr) {
-                console.error(res);
+                if (res.status != 404)
+                    console.error(res);
             }
         });
     }, 15000);
@@ -54,7 +56,6 @@ $(document).ready(function (event) {
         menu.className = "sidebar-menu";
         menu.id = "nav-accordion";
         empleado.menu.map(function (item) {
-            console.log(item.submenu.length)
             if (item.submenu.length == 0) {
                 menu.appendChild(crearItem(item.opcion.icono, item.opcion.nombre, item.opcion.url_vista))
             } else {
